@@ -22,3 +22,15 @@ Thumbs.db
 # Logs
 *.log
 npm-debug.log*
+# Ignore private environment variables containing secrets
+backend/.env
+
+# Ignore compiled python files and cache
+**/__pycache__/
+**/*.pyc
+**/.pytest_cache/
+
+# Ignore local uploaded files and test files
+backend/uploads/
+backend/sample_agreement.pdf
+backend/create_sample_pdf.py
