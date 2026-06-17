@@ -8,7 +8,16 @@ import {
   User,
   Sparkles,
 } from "lucide-react";
-import { chatMessages as initialMessages, mockChatResponses } from "@/data/mockData";
+import { sendChatMessage } from "@/services/api";
+
+const initialMessages = [
+  {
+    id: 1,
+    role: "assistant",
+    content: "Hi! I'm your AI Legal Assistant. How can I help you understand this document?",
+    timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+  },
+];
 
 export default function Chatbot() {
   const [isOpen, setIsOpen] = useState(false);
@@ -16,7 +25,6 @@ export default function Chatbot() {
   const [messages, setMessages] = useState(initialMessages);
   const [input, setInput] = useState("");
   const [isTyping, setIsTyping] = useState(false);
-  const [responseIndex, setResponseIndex] = useState(0);
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
 
@@ -47,24 +55,39 @@ export default function Chatbot() {
     setInput("");
     setIsTyping(true);
 
-    setTimeout(() => {
-      const response =
-        mockChatResponses[responseIndex % mockChatResponses.length];
-      setResponseIndex((prev) => prev + 1);
+    const processMessage = async () => {
+      try {
+        const data = await sendChatMessage(input.trim(), messages);
+        const assistantMsg = {
+          id: Date.now() + 1,
+          role: "assistant",
+          content: data.reply || "I'm sorry, I couldn't generate a response.",
+          timestamp: new Date().toLocaleTimeString([], {
+            hour: "2-digit",
+            minute: "2-digit",
+          }),
+        };
+        setMessages((prev) => [...prev, assistantMsg]);
+      } catch (error) {
+        console.error("Chat error:", error);
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: Date.now() + 1,
+            role: "assistant",
+            content: "Sorry, there was an error processing your request.",
+            timestamp: new Date().toLocaleTimeString([], {
+              hour: "2-digit",
+              minute: "2-digit",
+            }),
+          },
+        ]);
+      } finally {
+        setIsTyping(false);
+      }
+    };
 
-      const assistantMsg = {
-        id: Date.now() + 1,
-        role: "assistant",
-        content: response,
-        timestamp: new Date().toLocaleTimeString([], {
-          hour: "2-digit",
-          minute: "2-digit",
-        }),
-      };
-
-      setIsTyping(false);
-      setMessages((prev) => [...prev, assistantMsg]);
-    }, 1500 + Math.random() * 1000);
+    processMessage();
   };
 
   const handleKeyDown = (e) => {

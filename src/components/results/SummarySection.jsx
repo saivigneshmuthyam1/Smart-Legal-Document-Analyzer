@@ -1,12 +1,11 @@
 import React, { useState } from "react";
 import { FileText, ChevronDown, ChevronUp, BookOpen } from "lucide-react";
-import { mockAnalysisResult } from "@/data/mockData";
 
-export default function SummarySection() {
+export default function SummarySection({ summary, clausesCount, risksCount }) {
   const [expanded, setExpanded] = useState(false);
-  const summary = mockAnalysisResult.data.summary;
+  const mainSummary = summary?.main_summary || "No summary available.";
   const truncateLength = 280;
-  const needsTruncation = summary.length > truncateLength;
+  const needsTruncation = mainSummary.length > truncateLength;
 
   return (
     <div className="bg-white rounded-xl border border-border shadow-card overflow-hidden animate-slide-up">
@@ -27,8 +26,8 @@ export default function SummarySection() {
       <div className="px-5 py-4">
         <p className="text-[13px] text-text-secondary leading-relaxed">
           {expanded || !needsTruncation
-            ? summary
-            : summary.slice(0, truncateLength) + "..."}
+            ? mainSummary
+            : mainSummary.slice(0, truncateLength) + "..."}
         </p>
 
         {needsTruncation && (
@@ -53,9 +52,9 @@ export default function SummarySection() {
         {/* Quick Stats */}
         <div className="grid grid-cols-3 gap-3 mt-4 pt-4 border-t border-border/40">
           {[
-            { label: "Clauses", value: mockAnalysisResult.data.clauses.length },
-            { label: "Risks Found", value: mockAnalysisResult.data.risks.length },
-            { label: "Articles", value: "12" },
+            { label: "Clauses", value: clausesCount || 0 },
+            { label: "Risks Found", value: risksCount || 0 },
+            { label: "Key Points", value: summary?.key_points?.length || 0 },
           ].map((stat) => (
             <div
               key={stat.label}

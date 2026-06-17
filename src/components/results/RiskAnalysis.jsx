@@ -6,7 +6,6 @@ import {
   TrendingUp,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { mockAnalysisResult } from "@/data/mockData";
 
 const severityConfig = {
   High: {
@@ -41,8 +40,7 @@ const severityConfig = {
   },
 };
 
-export default function RiskAnalysis() {
-  const risks = mockAnalysisResult.data.risks;
+export default function RiskAnalysis({ risks = [] }) {
 
   const riskCounts = {
     High: risks.filter((r) => r.severity === "High").length,
@@ -117,10 +115,10 @@ export default function RiskAnalysis() {
                       <Badge variant={config.variant}>{risk.severity}</Badge>
                     </div>
                     <h4 className="text-[13px] font-semibold text-text mb-1">
-                      {risk.risk_title}
+                      {risk.title || risk.risk_title}
                     </h4>
                     <p className="text-[12px] text-text-secondary leading-relaxed">
-                      {risk.explanation}
+                      {risk.description || risk.explanation}
                     </p>
                   </div>
                 </div>

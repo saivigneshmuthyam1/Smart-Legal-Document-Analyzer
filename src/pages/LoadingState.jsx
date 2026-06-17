@@ -1,19 +1,29 @@
 import React, { useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import Sidebar from "@/components/layout/Sidebar";
 import Header from "@/components/layout/Header";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Scale } from "lucide-react";
+import { analyzeDocument } from "@/services/api";
 
 export default function LoadingState() {
   const navigate = useNavigate();
 
+  const { state } = useLocation();
+
   useEffect(() => {
-    const timer = setTimeout(() => {
-      navigate("/results");
-    }, 3000);
-    return () => clearTimeout(timer);
-  }, [navigate]);
+    const fetchData = async () => {
+      try {
+        const textToAnalyze = state?.pasteText || "Dummy text for now since PDF parsing requires backend update";
+        const response = await analyzeDocument(textToAnalyze);
+        navigate("/results", { state: { analysisData: response } });
+      } catch (error) {
+        console.error("Failed to analyze:", error);
+        navigate("/dashboard");
+      }
+    };
+    fetchData();
+  }, [navigate, state]);
 
   return (
     <div className="flex h-screen bg-background">

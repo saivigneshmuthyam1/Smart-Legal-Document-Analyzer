@@ -35,7 +35,7 @@ export default function DashboardInput() {
   }, []);
 
   const handleAnalyze = () => {
-    navigate("/loading");
+    navigate("/loading", { state: { pasteText, uploadedFile } });
   };
 
   return (

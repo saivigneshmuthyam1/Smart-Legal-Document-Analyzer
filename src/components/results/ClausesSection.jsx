@@ -9,7 +9,6 @@ import {
   ListTree,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { mockAnalysisResult } from "@/data/mockData";
 
 const typeVariantMap = {
   Standard: "standard",
@@ -17,8 +16,14 @@ const typeVariantMap = {
   Critical: "critical",
 };
 
-export default function ClausesSection() {
-  const clauses = mockAnalysisResult.data.clauses;
+export default function ClausesSection({ clauses: clausesData }) {
+  const clauses = useMemo(() => {
+    if (!clausesData) return [];
+    return [
+      ...(clausesData.standard_clauses || []),
+      ...(clausesData.non_standard_clauses || [])
+    ];
+  }, [clausesData]);
   const [searchQuery, setSearchQuery] = useState("");
   const [filterType, setFilterType] = useState("All");
   const [expandedClauses, setExpandedClauses] = useState(new Set([0, 2]));
@@ -27,8 +32,8 @@ export default function ClausesSection() {
   const filteredClauses = useMemo(() => {
     return clauses.filter((clause) => {
       const matchesSearch =
-        clause.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        clause.description.toLowerCase().includes(searchQuery.toLowerCase());
+        clause.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        clause.content?.toLowerCase().includes(searchQuery.toLowerCase());
       const matchesType = filterType === "All" || clause.type === filterType;
       return matchesSearch && matchesType;
     });
@@ -173,7 +178,7 @@ export default function ClausesSection() {
                 {isExpanded && (
                   <div className="px-4 pb-3.5 animate-fade-in">
                     <p className="text-[12.5px] text-text-secondary leading-relaxed pl-[18px]">
-                      {clause.description}
+                      {clause.content}
                     </p>
                   </div>
                 )}

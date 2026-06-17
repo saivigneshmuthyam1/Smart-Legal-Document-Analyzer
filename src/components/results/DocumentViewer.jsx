@@ -1,8 +1,7 @@
 import React, { useRef, useEffect } from "react";
 import { FileText, ZoomIn, ZoomOut, Download } from "lucide-react";
-import { contractText } from "@/data/mockData";
 
-export default function DocumentViewer() {
+export default function DocumentViewer({ documentContent = "" }) {
   const scrollRef = useRef(null);
 
   return (
@@ -40,7 +39,7 @@ export default function DocumentViewer() {
       {/* Document Content */}
       <div ref={scrollRef} className="flex-1 overflow-y-auto p-6">
         <div className="max-w-none prose prose-sm">
-          {contractText.split("\n").map((line, i) => {
+          {documentContent.split("\n").map((line, i) => {
             const trimmed = line.trim();
             if (!trimmed) return <div key={i} className="h-3" />;
 

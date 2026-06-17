@@ -68,3 +68,36 @@ class DBAgent:
         except Exception as e:
             logger.error(f"Failed to insert analysis records into Supabase: {str(e)}", exc_info=True)
             raise DatabaseExecutionError(f"Database insertion failed: {str(e)}")
+
+    async def get_history(self, user_id: str = "default_user") -> list:
+        """
+        Fetches analysis history for a given user from the Supabase 'analyses' table.
+        """
+        try:
+            supabase_client = self.client
+        except MissingDBCredentialsError:
+            # If no DB configured, return empty list gracefully
+            logger.warning("Supabase credentials missing, cannot fetch history.")
+            return []
+
+        def _execute_select():
+            return supabase_client.table("analyses").select("document_id, metadata, created_at").eq("user_id", user_id).order("created_at", desc=True).limit(10).execute()
+
+        try:
+            loop = asyncio.get_running_loop()
+            response = await loop.run_in_executor(None, _execute_select)
+            
+            # Format the output to match frontend expectations
+            history = []
+            for item in response.data:
+                metadata = item.get("metadata", {})
+                history.append({
+                    "id": item.get("document_id"),
+                    "name": metadata.get("document_type", "Unknown Document") + ".pdf",
+                    "type": metadata.get("document_type", "Unknown"),
+                    "date": item.get("created_at", "").split("T")[0] if item.get("created_at") else "Unknown Date"
+                })
+            return history
+        except Exception as e:
+            logger.error(f"Failed to fetch history from Supabase: {str(e)}", exc_info=True)
+            return []

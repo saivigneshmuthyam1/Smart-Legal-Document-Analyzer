@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import {
   Scale,
@@ -13,11 +13,18 @@ import {
   LogOut,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { analysisHistory } from "@/data/mockData";
+import { fetchHistory } from "@/services/api";
 
 export default function Sidebar({ collapsed = false }) {
   const navigate = useNavigate();
   const location = useLocation();
+  const [history, setHistory] = useState([]);
+
+  useEffect(() => {
+    fetchHistory()
+      .then((data) => setHistory(data))
+      .catch((err) => console.error("Failed to load history:", err));
+  }, []);
 
   const navItems = [
     { icon: LayoutDashboard, label: "Dashboard", path: "/dashboard" },
@@ -108,7 +115,7 @@ export default function Sidebar({ collapsed = false }) {
               </span>
             </div>
             <div className="space-y-0.5">
-              {analysisHistory.map((doc) => (
+              {history.map((doc) => (
                 <button
                   key={doc.id}
                   onClick={() => navigate("/results")}

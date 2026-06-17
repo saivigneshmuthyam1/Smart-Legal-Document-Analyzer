@@ -1,5 +1,5 @@
-import React, { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import React, { useState, useEffect } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
 import {
   Scale,
   FileText,
@@ -13,10 +13,11 @@ import {
   LogOut,
   BookOpen,
   ShieldAlert,
-  ListTree,
+  ListTree
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { analysisHistory } from "@/data/mockData";
+import { fetchHistory } from "@/services/api";
+
 import DocumentViewer from "@/components/results/DocumentViewer";
 import SummarySection from "@/components/results/SummarySection";
 import ClausesSection from "@/components/results/ClausesSection";
@@ -25,7 +26,21 @@ import Chatbot from "@/components/Chatbot";
 
 export default function ResultsDashboard() {
   const navigate = useNavigate();
+  const { state } = useLocation();
   const [activePanel, setActivePanel] = useState("summary");
+  const [history, setHistory] = useState([]);
+
+  useEffect(() => {
+    fetchHistory()
+      .then((data) => setHistory(data))
+      .catch((err) => console.error("Failed to load history:", err));
+  }, []);
+  
+  const analysisData = state?.analysisData;
+  const summary = analysisData?.summary;
+  const clauses = analysisData?.clauses;
+  const risks = analysisData?.risks;
+  const metadata = analysisData?.metadata;
 
   const panels = [
     { id: "summary", label: "Summary", icon: BookOpen },
@@ -99,7 +114,7 @@ export default function ResultsDashboard() {
               </span>
             </div>
             <div className="space-y-0.5">
-              {analysisHistory.map((doc, i) => (
+              {history.map((doc, i) => (
                 <button
                   key={doc.id}
                   className={cn(
@@ -186,7 +201,7 @@ export default function ResultsDashboard() {
 
         {/* Document */}
         <div className="flex-1 p-4 overflow-hidden">
-          <DocumentViewer />
+          <DocumentViewer documentContent={state?.pasteText || "Document text not available"} />
         </div>
       </div>
 
@@ -215,9 +230,9 @@ export default function ResultsDashboard() {
 
         {/* Panel Content */}
         <div className="flex-1 overflow-y-auto p-4 space-y-4">
-          {activePanel === "summary" && <SummarySection />}
-          {activePanel === "clauses" && <ClausesSection />}
-          {activePanel === "risks" && <RiskAnalysis />}
+          {activePanel === "summary" && <SummarySection summary={summary} clausesCount={clauses?.standard_clauses?.length + clauses?.non_standard_clauses?.length || 0} risksCount={risks?.length || 0} />}
+          {activePanel === "clauses" && <ClausesSection clauses={clauses} />}
+          {activePanel === "risks" && <RiskAnalysis risks={risks} />}
         </div>
       </div>
 
