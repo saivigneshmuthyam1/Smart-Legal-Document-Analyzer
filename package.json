@@ -3,11 +3,34 @@
   "version": "1.0.0",
   "description": "Root project to run frontend and backend",
   "scripts": {
-    "install:all": "npm install --prefix frontend",
-    "start": "concurrently \"cd backend && python -m uvicorn app.main:app --reload --port 5000\" \"npm start --prefix frontend\"",
-    "dev": "concurrently \"cd backend && python -m uvicorn app.main:app --reload --port 5000\" \"npm run dev --prefix frontend\""
+    "install:all": "npm install && npm install --prefix frontend",
+    "start": "concurrently \"cd backend && python -m uvicorn app.main:app --reload --port 5000\" \"npm run dev --prefix frontend\"",
+    "dev": "concurrently \"cd backend && python -m uvicorn app.main:app --reload --port 5000\" \"npm run dev --prefix frontend\"",
+    "dev:root": "vite",
+    "build": "vite build",
+    "build:frontend": "npm run build --prefix frontend",
+    "preview": "vite preview"
   },
   "devDependencies": {
-    "concurrently": "^8.2.2"
+    "concurrently": "^8.2.2",
+    "typescript": "~6.0.2",
+    "vite": "^8.0.12"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.108.2",
+    "@tailwindcss/vite": "^4.3.1",
+    "@vitejs/plugin-react": "^6.0.2",
+    "axios": "^1.18.0",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "framer-motion": "^12.40.0",
+    "jspdf": "^4.2.1",
+    "lucide-react": "^1.20.0",
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7",
+    "react-router-dom": "^7.18.0",
+    "tailwind-merge": "^3.6.0",
+    "tailwindcss": "^4.3.1",
+    "tesseract.js": "^7.0.0"
   }
 }
