@@ -1,0 +1,29 @@
+# Node.js
+node_modules/
+**/node_modules/
+dist/
+**/dist/
+
+# Python
+__pycache__/
+**/__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+.venv/
+backend/uploads/
+**/uploads/
+
+# Environments / Secrets
+.env
+**/local_settings.py
+
+# OS / IDE
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+.gemini/

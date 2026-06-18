@@ -1,0 +1,13 @@
+{
+  "name": "smart-legal-document-analyzer",
+  "version": "1.0.0",
+  "description": "Root project to run frontend and backend",
+  "scripts": {
+    "install:all": "npm install --prefix frontend",
+    "start": "concurrently \"cd backend && python -m uvicorn app.main:app --reload --port 5000\" \"npm start --prefix frontend\"",
+    "dev": "concurrently \"cd backend && python -m uvicorn app.main:app --reload --port 5000\" \"npm run dev --prefix frontend\""
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}

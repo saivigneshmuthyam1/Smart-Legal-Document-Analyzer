@@ -1,0 +1,5 @@
+{
+  "dependencies": {
+    "smart-legal-document-analyzer": "file:.."
+  }
+}
