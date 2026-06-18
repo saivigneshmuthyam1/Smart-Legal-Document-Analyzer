@@ -1,8 +1,9 @@
 import json
 import logging
+from typing import List, Optional
 from openai import AsyncOpenAI
 from app.core.config import settings
-from app.models.schemas import LLMResponse, LLMSummary, LLMRisk, LLMClause, LLMMetadata
+from app.models.schemas import LLMResponse, LLMSummary, LLMRisk, LLMClause, LLMMetadata, PlaybookRuleResult
 
 logger = logging.getLogger(__name__)
 
@@ -29,6 +30,7 @@ class LLMClient:
             self._client = AsyncOpenAI(**client_kwargs)
         return self._client
 
+    async def analyze_document(self, document_text: str, playbook_rules: Optional[List[str]] = None) -> LLMResponse:
     async def analyze_document(self, document_text: str, playbook_rules: list = None) -> LLMResponse:
         """
         Calls OpenAI ChatCompletion in JSON mode exactly once to parse the document text.
@@ -40,6 +42,27 @@ class LLMClient:
         except MissingAPIKeyError as e:
             raise e
 
+        # Format playbook rules description
+        playbook_guide = ""
+        playbook_schema = ""
+        if playbook_rules and len(playbook_rules) > 0:
+            playbook_schema = (
+                ",\n"
+                "    \"playbook_analysis\": [\n"
+                "      {\n"
+                "        \"rule\": \"The rule text\",\n"
+                "        \"compliant\": true | false,\n"
+                "        \"explanation\": \"Detailed explanation of why the contract is compliant or non-compliant.\",\n"
+                "        \"severity\": \"High\" | \"Medium\" | \"Low\"\n"
+                "      }\n"
+                "    ]"
+            )
+            rules_str = "\n".join([f"- {r}" for r in playbook_rules])
+            playbook_guide = (
+                f"\n4. You must audit the document against the following Company Playbook rules:\n"
+                f"{rules_str}\n"
+                f"Evaluate each rule. If a rule is Non-Compliant, you MUST ALSO add an entry to the 'risks' list describing the risk, explanation, and setting severity."
+            )
         playbook_str = ""
         if playbook_rules and len(playbook_rules) > 0:
             rules_list = "\n".join([f"- {r}" for r in playbook_rules])
@@ -71,13 +94,16 @@ class LLMClient:
             "  \"metadata\": {\n"
             "    \"document_type\": \"e.g. Non-Disclosure Agreement, Master Services Agreement, Lease\",\n"
             "    \"parties\": [\"Party A\", \"Party B\"],\n"
-            "    \"effective_date\": \"YYYY-MM-DD or Unknown\"\n"
+            "    \"effective_date\": \"YYYY-MM-DD or Unknown\""
+            f"{playbook_schema}\n"
             "  }\n"
             "}\n\n"
             "Guidelines:\n"
             "1. Extract all significant risks and categorize their severity as 'High', 'Medium', or 'Low'.\n"
             "2. Extract key clauses and identify if they are 'Standard' or 'Non-Standard' (i.e. unusual, highly restrictive, or asymmetric terms).\n"
             "3. Ensure the output is strictly valid JSON. Do not include any markdown codeblocks or conversational text around the JSON."
+            f"{playbook_guide}"
+        )
         ) + playbook_str
 
         user_prompt = f"Here is the legal document to analyze:\n\n{document_text}"
@@ -113,9 +139,9 @@ class LLMClient:
             return LLMResponse.model_validate(parsed_data)
         except Exception as ve:
             logger.warning(f"Pydantic validation failed for LLM response, applying fallback defaults: {str(ve)}")
-            return self._apply_fallback_defaults(parsed_data)
+            return self._apply_fallback_defaults(parsed_data, playbook_rules)
 
-    def _apply_fallback_defaults(self, data: dict) -> LLMResponse:
+    def _apply_fallback_defaults(self, data: dict, playbook_rules: Optional[List[str]] = None) -> LLMResponse:
         """Helper to construct a valid LLMResponse by applying defaults to missing or malformed keys."""
         summary_dict = data.get("summary", {}) if isinstance(data.get("summary"), dict) else {}
         risks_list = data.get("risks", []) if isinstance(data.get("risks"), list) else []
@@ -157,6 +183,28 @@ class LLMClient:
         parties = [str(p) for p in parties if p]
         effective_date = metadata_dict.get("effective_date", "Unknown Effective Date")
 
+        # Parse playbook_analysis from metadata
+        playbook_analysis = []
+        raw_playbook_analysis = metadata_dict.get("playbook_analysis", [])
+        if isinstance(raw_playbook_analysis, list):
+            for pa in raw_playbook_analysis:
+                if isinstance(pa, dict):
+                    playbook_analysis.append(PlaybookRuleResult(
+                        rule=str(pa.get("rule", "")),
+                        compliant=bool(pa.get("compliant", True)),
+                        explanation=str(pa.get("explanation", "")),
+                        severity=str(pa.get("severity", "Low"))
+                    ))
+        
+        # If playbook rules were requested but no analysis is present, fill with default compliant objects
+        if playbook_rules and len(playbook_analysis) == 0:
+            for rule in playbook_rules:
+                playbook_analysis.append(PlaybookRuleResult(
+                    rule=rule,
+                    compliant=True,
+                    explanation="No policy violations detected during parsing."
+                ))
+
         return LLMResponse(
             summary=LLMSummary(main_summary=main_summary, key_points=key_points),
             risks=processed_risks,
@@ -164,10 +212,15 @@ class LLMClient:
             metadata=LLMMetadata(
                 document_type=document_type,
                 parties=parties,
-                effective_date=effective_date
+                effective_date=effective_date,
+                playbook_analysis=playbook_analysis if playbook_rules else None
             )
         )
 
+    async def validate_document_text(self, text: str) -> dict:
+        """
+        Validates if the text represents a valid legal document.
+        Returns a dict with is_legal_document, confidence_score, and reason.
     async def verify_clause(self, clause_text: str, playbook_rules: list = None) -> dict:
         """
         Verify if a given clause complies with the active playbook rules.
@@ -178,6 +231,36 @@ class LLMClient:
         except MissingAPIKeyError as e:
             raise e
 
+        system_prompt = (
+            "You are an expert legal document classifier. Your job is to analyze the provided OCR-extracted text "
+            "and determine whether it represents a valid legal document (e.g., NDA, Lease, Agreement, Contract, "
+            "Terms of Service, Service Agreement, Vendor Agreement, Legal Notice, etc.) or if it is an invalid document.\n\n"
+            "LEGAL DOCUMENT INDICATORS:\n"
+            "Look for keywords and concepts such as: Agreement, Contract, Terms and Conditions, Lease, "
+            "Employment Agreement, Vendor Agreement, NDA, Non Disclosure, Confidentiality, Legal Notice, "
+            "Party A, Party B, Obligations, Liability, Termination, Indemnification, Jurisdiction, Governing Law.\n\n"
+            "INVALID DOCUMENT EXAMPLES TO REJECT:\n"
+            "Selfies, Human Photos, Group Photos, Landscape Photos, Animal Photos, Food Images, "
+            "Social Media Screenshots, WhatsApp Chats, Instagram Posts, Memes, Blank Images, Random Pictures.\n\n"
+            "CLASSIFICATION CRITERIA:\n"
+            "1. If the text does not contain any legal terminology or keywords, classify it as NOT a legal document (is_legal_document: false, confidence_score < 60).\n"
+            "2. If the text appears to be from a social media post, a chat message, a selfie description, or any non-legal context, classify it as invalid (is_legal_document: false, confidence_score < 60).\n"
+            "3. Provide a 'confidence_score' between 0 and 100 representing how confident you are that this is a valid legal document.\n"
+            "   - If it is definitely NOT a legal document, the confidence score should be very low (e.g., 0% to 30%).\n"
+            "   - If it is ambiguous, set it below 60%.\n"
+            "   - Only assign >= 60% if you are reasonably confident the text represents a legal contract, agreement, or notice.\n\n"
+            "Return a JSON object with this exact structure:\n"
+            "{\n"
+            "  \"is_legal_document\": true | false,\n"
+            "  \"confidence_score\": 0 to 100,\n"
+            "  \"reason\": \"A detailed reason explaining why this is or isn't a legal document (e.g., no legal terminology detected, insufficient text extracted, OCR confidence too low, appears to be conversational/social media, etc.).\"\n"
+            "}"
+        )
+        
+        user_prompt = f"Analyze this text and classify it:\n\n{text[:6000]}"
+        
+        try:
+            logger.info("Sending document classification request to LLM...")
         rules_list = "\n".join([f"- {r}" for r in (playbook_rules or [])])
         
         system_prompt = (
@@ -205,6 +288,23 @@ class LLMClient:
                 response_format={"type": "json_object"},
                 temperature=0.1
             )
+            raw_content = response.choices[0].message.content or "{}"
+            result = json.loads(raw_content)
+            # Normalize boolean flag and confidence score types
+            if "is_legal_document" in result:
+                result["is_legal_document"] = bool(result["is_legal_document"])
+            if "confidence_score" in result:
+                try:
+                    result["confidence_score"] = int(result["confidence_score"])
+                except ValueError:
+                    result["confidence_score"] = 0
+            return result
+        except Exception as e:
+            logger.error(f"Document validation LLM call failed: {str(e)}", exc_info=True)
+            # Re-raise the exception to allow main.py to invoke the local keyword fallback
+            raise e
+
+
             raw_content = response.choices[0].message.content
             parsed = json.loads(raw_content)
             return {

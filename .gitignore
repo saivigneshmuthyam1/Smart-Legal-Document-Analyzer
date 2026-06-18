@@ -15,6 +15,9 @@ env/
 venv/
 .venv/
 backend/uploads/
+backend/sample_agreement.pdf
+backend/create_sample_pdf.py
+**/*.pdf
 **/uploads/
 
 # Environments / Secrets
