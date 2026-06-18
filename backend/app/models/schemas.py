@@ -21,6 +21,7 @@ class LLMMetadata(BaseModel):
     document_type: str = Field(description="The type of the legal document (e.g. NDA, MSA, Lease Agreement).")
     parties: List[str] = Field(default_factory=list, description="Parties involved in the contract.")
     effective_date: str = Field(description="Effective date of the document.")
+    filename: str = ""
 
 class LLMResponse(BaseModel):
     """The raw structured response expected from the LLM."""
@@ -61,3 +62,20 @@ class FinalAnalysisResponse(BaseModel):
 class AnalyzeTextRequest(BaseModel):
     input_type: Literal["text"]
     content: str
+    user_id: str
+    playbook_rules: List[str] = Field(default_factory=list)
+
+class GlobalChatRequest(BaseModel):
+    user_id: str
+    question: str
+
+class ResolveRiskRequest(BaseModel):
+    document_id: str
+    risk_title: str
+    is_resolved: bool
+
+class SuggestionsRequest(BaseModel):
+    user_id: str
+
+class SuggestionsResponse(BaseModel):
+    suggestions: List[str]

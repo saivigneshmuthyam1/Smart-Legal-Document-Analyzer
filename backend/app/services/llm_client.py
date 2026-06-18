@@ -29,7 +29,7 @@ class LLMClient:
             self._client = AsyncOpenAI(**client_kwargs)
         return self._client
 
-    async def analyze_document(self, document_text: str) -> LLMResponse:
+    async def analyze_document(self, document_text: str, playbook_rules: list = None) -> LLMResponse:
         """
         Calls OpenAI ChatCompletion in JSON mode exactly once to parse the document text.
         Applies fallback validation and defaults if some fields are missing.
@@ -39,6 +39,11 @@ class LLMClient:
             openai_client = self.client
         except MissingAPIKeyError as e:
             raise e
+
+        playbook_str = ""
+        if playbook_rules and len(playbook_rules) > 0:
+            rules_list = "\n".join([f"- {r}" for r in playbook_rules])
+            playbook_str = f"\n\nCRITICAL PLAYBOOK RULES TO ENFORCE:\nThe user has defined the following specific legal policies. You MUST evaluate the document against these rules. If any rule is violated, flag it as a 'High' severity risk and specifically mention the playbook violation in the description.\n{rules_list}\n"
 
         # Construct one single mega-prompt
         system_prompt = (
@@ -73,7 +78,7 @@ class LLMClient:
             "1. Extract all significant risks and categorize their severity as 'High', 'Medium', or 'Low'.\n"
             "2. Extract key clauses and identify if they are 'Standard' or 'Non-Standard' (i.e. unusual, highly restrictive, or asymmetric terms).\n"
             "3. Ensure the output is strictly valid JSON. Do not include any markdown codeblocks or conversational text around the JSON."
-        )
+        ) + playbook_str
 
         user_prompt = f"Here is the legal document to analyze:\n\n{document_text}"
 
@@ -162,3 +167,53 @@ class LLMClient:
                 effective_date=effective_date
             )
         )
+
+    async def verify_clause(self, clause_text: str, playbook_rules: list = None) -> dict:
+        """
+        Verify if a given clause complies with the active playbook rules.
+        Returns a dict: {"compliant": bool, "reason": str}
+        """
+        try:
+            openai_client = self.client
+        except MissingAPIKeyError as e:
+            raise e
+
+        rules_list = "\n".join([f"- {r}" for r in (playbook_rules or [])])
+        
+        system_prompt = (
+            "You are an expert legal auditor. You must evaluate the provided contract clause "
+            "against the user's specific playbook policies. You must determine if the clause "
+            "strictly complies with all of the rules, or if it violates any of them.\n\n"
+            "You MUST respond ONLY with a JSON object in the following format:\n"
+            "{\n"
+            "  \"compliant\": true | false,\n"
+            "  \"reason\": \"If compliant, explain why it satisfies the policies. If not, explain exactly which rule(s) it violates and how it can be fixed.\"\n"
+            "}\n\n"
+            "Ensure the output is strictly valid JSON. Do not include any markdown formatting, backticks, or other text outside the JSON."
+        )
+
+        user_prompt = f"Active Playbook Rules:\n{rules_list}\n\nClause Text to Verify:\n\"{clause_text}\""
+
+        try:
+            logger.info(f"Sending verification request to model: {self.model}")
+            response = await openai_client.chat.completions.create(
+                model=self.model,
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt}
+                ],
+                response_format={"type": "json_object"},
+                temperature=0.1
+            )
+            raw_content = response.choices[0].message.content
+            parsed = json.loads(raw_content)
+            return {
+                "compliant": bool(parsed.get("compliant", True)),
+                "reason": str(parsed.get("reason", "Verification complete."))
+            }
+        except Exception as e:
+            logger.error(f"Failed to verify clause: {str(e)}", exc_info=True)
+            return {
+                "compliant": False,
+                "reason": f"System error during verification: {str(e)}"
+            }

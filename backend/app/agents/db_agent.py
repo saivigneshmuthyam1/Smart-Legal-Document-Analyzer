@@ -69,35 +69,34 @@ class DBAgent:
             logger.error(f"Failed to insert analysis records into Supabase: {str(e)}", exc_info=True)
             raise DatabaseExecutionError(f"Database insertion failed: {str(e)}")
 
-    async def get_history(self, user_id: str = "default_user") -> list:
+    async def get_analysis_by_filename(self, filename: str, user_id: str) -> dict:
         """
-        Fetches analysis history for a given user from the Supabase 'analyses' table.
+        Retrieves a document analysis by filename and user_id from Supabase.
         """
         try:
             supabase_client = self.client
-        except MissingDBCredentialsError:
-            # If no DB configured, return empty list gracefully
-            logger.warning("Supabase credentials missing, cannot fetch history.")
-            return []
+        except MissingDBCredentialsError as e:
+            raise e
 
-        def _execute_select():
-            return supabase_client.table("analyses").select("document_id, metadata, created_at").eq("user_id", user_id).order("created_at", desc=True).limit(10).execute()
+        def _execute_query():
+            return supabase_client.table("analyses").select("*").eq("user_id", user_id).execute()
 
         try:
+            logger.info(f"Checking for existing analysis for filename '{filename}' and user ID {user_id}")
             loop = asyncio.get_running_loop()
-            response = await loop.run_in_executor(None, _execute_select)
-            
-            # Format the output to match frontend expectations
-            history = []
-            for item in response.data:
-                metadata = item.get("metadata", {})
-                history.append({
-                    "id": item.get("document_id"),
-                    "name": metadata.get("document_type", "Unknown Document") + ".pdf",
-                    "type": metadata.get("document_type", "Unknown"),
-                    "date": item.get("created_at", "").split("T")[0] if item.get("created_at") else "Unknown Date"
-                })
-            return history
+            response = await loop.run_in_executor(None, _execute_query)
+            if response.data:
+                for doc in response.data:
+                    meta = doc.get("metadata", {})
+                    # Handle dict metadata and string format checks
+                    if isinstance(meta, str):
+                        try:
+                            meta = json.loads(meta)
+                        except:
+                            meta = {}
+                    if meta and meta.get("filename") == filename:
+                        return doc
+            return None
         except Exception as e:
-            logger.error(f"Failed to fetch history from Supabase: {str(e)}", exc_info=True)
-            return []
+            logger.error(f"Failed to query database for filename duplicate check: {str(e)}", exc_info=True)
+            return None
