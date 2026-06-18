@@ -1,6 +1,8 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import Shell from "@/components/layout/Shell";
+import { useAuth } from "@/contexts/AuthContext";
+import { getHistory, deleteAnalysis } from "@/services/api";
 import { 
   Search, 
   Filter, 
@@ -11,106 +13,107 @@ import {
   ChevronLeft, 
   ChevronRight,
   SlidersHorizontal,
-  ArrowUpDown
+  ArrowUpDown,
+  RefreshCw,
+  AlertCircle
 } from "lucide-react";
 
 export default function DocumentLibrary() {
   const navigate = useNavigate();
+  const { userId } = useAuth();
   const [searchTerm, setSearchTerm] = useState("");
   const [filterRisk, setFilterRisk] = useState("all");
+  const [documents, setDocuments] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
-  const [documents, setDocuments] = useState([
-    {
-      id: "1",
-      name: "Master Service Agreement - TechFlow Inc.",
-      filename: "MSA_2023_FINAL_V2.pdf",
-      date: "Oct 24, 2023, 14:32",
-      riskLevel: "High Risk",
-      riskStyle: "bg-risk-red-light text-risk-red border-risk-red/10",
-      status: "Analyzed"
-    },
-    {
-      id: "2",
-      name: "Non-Disclosure Agreement - Creative Studio",
-      filename: "NDA_Standard_Mutual.docx",
-      date: "Oct 22, 2023, 09:15",
-      riskLevel: "Low Risk",
-      riskStyle: "bg-risk-green-light text-risk-green border-risk-green/10",
-      status: "Analyzed"
-    },
-    {
-      id: "3",
-      name: "Employment Contract Template - EU",
-      filename: "EMP_Template_Berlin.pdf",
-      date: "Oct 18, 2023, 16:45",
-      riskLevel: "Medium Risk",
-      riskStyle: "bg-risk-amber-light text-risk-amber border-risk-amber/10",
-      status: "Analyzed"
-    },
-    {
-      id: "4",
-      name: "Data Processing Addendum (DPA) - CloudProvider",
-      filename: "DPA_Global_Ops.pdf",
-      date: "Oct 15, 2023, 11:20",
-      riskLevel: "High Risk",
-      riskStyle: "bg-risk-red-light text-risk-red border-risk-red/10",
-      status: "Analyzed"
-    },
-    {
-      id: "5",
-      name: "Software Licensing Agreement - OpenDev",
-      filename: "LICENSE_Commercial_A.pdf",
-      date: "Oct 12, 2023, 10:05",
-      riskLevel: "Low Risk",
-      riskStyle: "bg-risk-green-light text-risk-green border-risk-green/10",
-      status: "Analyzed"
+  const fetchDocuments = async () => {
+    setLoading(true);
+    setError("");
+    try {
+      const data = await getHistory(userId);
+      setDocuments(data);
+    } catch (err) {
+      setError(err.message || "Failed to load documents.");
+    } finally {
+      setLoading(false);
     }
-  ]);
+  };
 
-  const handleDelete = (id, e) => {
+  useEffect(() => {
+    fetchDocuments();
+  }, [userId]);
+
+  const handleDelete = async (documentId, e) => {
     e.stopPropagation();
-    setDocuments(prev => prev.filter(doc => doc.id !== id));
+    if (!confirm("Are you sure you want to delete this analysis?")) return;
+    
+    try {
+      await deleteAnalysis(documentId);
+      setDocuments(prev => prev.filter(doc => doc.document_id !== documentId));
+    } catch (err) {
+      alert("Failed to delete: " + (err.message || "Unknown error"));
+    }
+  };
+
+  // Risk level helper
+  const getRiskInfo = (doc) => {
+    const risks = doc.risks || [];
+    const highCount = risks.filter(r => r.severity_weight === 3 || (r.severity || "").toLowerCase() === "high").length;
+    if (highCount > 0) return { label: "High Risk", level: "high", style: "bg-risk-red-light text-risk-red border-risk-red/10" };
+    const medCount = risks.filter(r => r.severity_weight === 2 || (r.severity || "").toLowerCase() === "medium").length;
+    if (medCount > 0) return { label: "Medium Risk", level: "medium", style: "bg-risk-amber-light text-risk-amber border-risk-amber/10" };
+    return { label: "Low Risk", level: "low", style: "bg-risk-green-light text-risk-green border-risk-green/10" };
   };
 
   const filteredDocs = documents.filter(doc => {
-    const matchesSearch = doc.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                          doc.filename.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesFilter = filterRisk === "all" || 
-                          doc.riskLevel.toLowerCase().replace(" risk", "") === filterRisk;
+    const docType = doc.metadata?.document_type || "";
+    const parties = doc.metadata?.parties?.join(", ") || "";
+    const matchesSearch = docType.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                          parties.toLowerCase().includes(searchTerm.toLowerCase());
+    const risk = getRiskInfo(doc);
+    const matchesFilter = filterRisk === "all" || risk.level === filterRisk;
     return matchesSearch && matchesFilter;
   });
+
+  // Compute stats
+  const totalRisks = documents.reduce((sum, d) => sum + (d.risks?.length || 0), 0);
+  const highRiskClauses = documents.reduce((sum, d) => {
+    return sum + (d.risks || []).filter(r => r.severity_weight === 3 || (r.severity || "").toLowerCase() === "high").length;
+  }, 0);
 
   return (
     <Shell>
       <div className="space-y-8">
-        {/* Title and Intro */}
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-primary">Document Library</h1>
           <p className="text-[13px] text-text-secondary">
-            Access and manage all analyzed legal documents. Monitor risk levels across your organization's portfolio with high-precision AI scanning.
+            Access and manage all analyzed legal documents.
           </p>
         </div>
 
         {/* Filter and Search Bar */}
         <div className="flex flex-col sm:flex-row items-center gap-4 bg-white border border-border p-4 rounded shadow-sm">
           <div className="relative flex-1 w-full">
-            <Search className="w-4 h-4 text-text-muted absolute left-3 top-2.5" />
+            <Search className="w-4 h-4 text-text-muted absolute left-3 top-2.5" aria-hidden="true" />
             <input
               type="text"
-              placeholder="Search by name or keyword..."
+              placeholder="Search by document type or parties..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full pl-9 pr-3 py-1.5 bg-white border border-border rounded text-[13px] placeholder-text-muted text-primary focus:outline-none focus:border-primary"
+              aria-label="Search documents"
             />
           </div>
           
           <div className="flex items-center gap-2 w-full sm:w-auto">
             <div className="flex items-center gap-1.5 text-text-secondary border border-border rounded px-3 py-1.5 text-[13px] bg-white">
-              <Filter className="w-3.5 h-3.5" />
+              <Filter className="w-3.5 h-3.5" aria-hidden="true" />
               <select 
                 value={filterRisk} 
                 onChange={(e) => setFilterRisk(e.target.value)}
                 className="bg-transparent focus:outline-none border-none text-[13px] text-text-secondary font-medium cursor-pointer"
+                aria-label="Filter by risk level"
               >
                 <option value="all">All Risks</option>
                 <option value="high">High Risk</option>
@@ -118,147 +121,136 @@ export default function DocumentLibrary() {
                 <option value="low">Low Risk</option>
               </select>
             </div>
-            
-            <button className="flex items-center justify-center p-2 border border-border rounded bg-white text-text-secondary hover:text-primary transition-colors">
-              <SlidersHorizontal className="w-4 h-4" />
-            </button>
           </div>
         </div>
 
-        {/* Library Table Container */}
+        {/* Library Table */}
         <div className="bg-white border border-border rounded shadow-sm overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse text-[13px]">
-              <thead>
-                <tr className="bg-primary-50 text-[11px] font-bold text-text-secondary uppercase tracking-wider border-b border-border">
-                  <th className="p-4 flex items-center gap-1">
-                    <span>Document Name</span>
-                    <ArrowUpDown className="w-3 h-3 cursor-pointer" />
-                  </th>
-                  <th className="p-4">Date Analyzed</th>
-                  <th className="p-4">Risk Level</th>
-                  <th className="p-4">Status</th>
-                  <th className="p-4 text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border">
-                {filteredDocs.length > 0 ? (
-                  filteredDocs.map((doc) => (
-                    <tr 
-                      key={doc.id}
-                      onClick={() => navigate(`/analysis/${doc.id}`)}
-                      className="hover:bg-primary-50/70 cursor-pointer transition-colors"
-                    >
-                      {/* Name Column */}
-                      <td className="p-4 max-w-xs">
-                        <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded bg-primary-100 flex items-center justify-center shrink-0">
-                            <FileText className="w-4 h-4 text-primary" />
-                          </div>
-                          <div className="truncate">
-                            <h4 className="font-semibold text-primary truncate leading-normal">{doc.name}</h4>
-                            <span className="text-[11px] text-text-secondary leading-normal">{doc.filename}</span>
-                          </div>
-                        </div>
-                      </td>
+          {loading ? (
+            <div className="p-12 flex items-center justify-center" role="status">
+              <div className="flex flex-col items-center gap-3">
+                <RefreshCw className="w-6 h-6 text-primary animate-spin" />
+                <p className="text-[13px] text-text-secondary">Loading documents...</p>
+              </div>
+            </div>
+          ) : error ? (
+            <div className="p-12 flex items-center justify-center">
+              <div className="flex flex-col items-center gap-3 text-center">
+                <AlertCircle className="w-6 h-6 text-risk-red" />
+                <p className="text-[13px] text-text-secondary">{error}</p>
+                <button onClick={fetchDocuments} className="px-4 py-1.5 bg-primary text-white text-[12px] rounded">Retry</button>
+              </div>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse text-[13px]">
+                <thead>
+                  <tr className="bg-primary-50 text-[11px] font-bold text-text-secondary uppercase tracking-wider border-b border-border">
+                    <th className="p-4">Document Name</th>
+                    <th className="p-4">Date Analyzed</th>
+                    <th className="p-4">Risk Level</th>
+                    <th className="p-4">Clauses</th>
+                    <th className="p-4 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border">
+                  {filteredDocs.length > 0 ? (
+                    filteredDocs.map((doc) => {
+                      const risk = getRiskInfo(doc);
+                      const docType = doc.metadata?.document_type || "Legal Document";
+                      const parties = doc.metadata?.parties?.join(" & ") || "";
+                      const date = doc.created_at ? new Date(doc.created_at).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" }) : "";
+                      const clauseCount = (doc.clauses?.standard_clauses?.length || 0) + (doc.clauses?.non_standard_clauses?.length || 0);
 
-                      {/* Date Column */}
-                      <td className="p-4 text-text-secondary font-medium uppercase text-[11px] tracking-tight">
-                        {doc.date}
-                      </td>
-
-                      {/* Risk Level Badge */}
-                      <td className="p-4">
-                        <span className={`px-2 py-0.5 text-[10px] font-bold rounded uppercase tracking-wider border ${doc.riskStyle}`}>
-                          {doc.riskLevel}
-                        </span>
-                      </td>
-
-                      {/* Status */}
-                      <td className="p-4 text-text-secondary font-medium">
-                        {doc.status}
-                      </td>
-
-                      {/* Actions */}
-                      <td className="p-4 text-right">
-                        <div className="flex items-center justify-end gap-1.5">
-                          <button 
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              navigate(`/analysis/${doc.id}`);
-                            }}
-                            className="p-1.5 hover:bg-white border border-transparent hover:border-border rounded text-text-secondary hover:text-primary transition-colors"
-                            title="View Document"
-                          >
-                            <Eye className="w-4 h-4" />
-                          </button>
-                          <button 
-                            onClick={(e) => e.stopPropagation()}
-                            className="p-1.5 hover:bg-white border border-transparent hover:border-border rounded text-text-secondary hover:text-primary transition-colors"
-                            title="Download Report"
-                          >
-                            <Download className="w-4 h-4" />
-                          </button>
-                          <button 
-                            onClick={(e) => handleDelete(doc.id, e)}
-                            className="p-1.5 hover:bg-white border border-transparent hover:border-border rounded text-text-secondary hover:text-risk-red transition-colors"
-                            title="Delete"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </div>
+                      return (
+                        <tr 
+                          key={doc.document_id}
+                          onClick={() => navigate(`/analysis/${doc.document_id}`)}
+                          className="hover:bg-primary-50/70 cursor-pointer transition-colors"
+                          role="button"
+                          tabIndex={0}
+                          onKeyDown={(e) => e.key === "Enter" && navigate(`/analysis/${doc.document_id}`)}
+                        >
+                          <td className="p-4 max-w-xs">
+                            <div className="flex items-center gap-3">
+                              <div className="w-8 h-8 rounded bg-primary-100 flex items-center justify-center shrink-0">
+                                <FileText className="w-4 h-4 text-primary" />
+                              </div>
+                              <div className="truncate">
+                                <h4 className="font-semibold text-primary truncate leading-normal">{parties || docType}</h4>
+                                <span className="text-[11px] text-text-secondary leading-normal">{docType}</span>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="p-4 text-text-secondary font-medium text-[11px]">{date}</td>
+                          <td className="p-4">
+                            <span className={`px-2 py-0.5 text-[10px] font-bold rounded uppercase tracking-wider border ${risk.style}`}>
+                              {risk.label}
+                            </span>
+                          </td>
+                          <td className="p-4 text-text-secondary font-medium">{clauseCount}</td>
+                          <td className="p-4 text-right">
+                            <div className="flex items-center justify-end gap-1.5">
+                              <button 
+                                onClick={(e) => { e.stopPropagation(); navigate(`/analysis/${doc.document_id}`); }}
+                                className="p-1.5 hover:bg-white border border-transparent hover:border-border rounded text-text-secondary hover:text-primary transition-colors"
+                                aria-label="View document analysis"
+                              >
+                                <Eye className="w-4 h-4" />
+                              </button>
+                              <button 
+                                onClick={(e) => handleDelete(doc.document_id, e)}
+                                className="p-1.5 hover:bg-white border border-transparent hover:border-border rounded text-text-secondary hover:text-risk-red transition-colors"
+                                aria-label="Delete analysis"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })
+                  ) : (
+                    <tr>
+                      <td colSpan="5" className="p-8 text-center text-text-secondary italic">
+                        {documents.length === 0 ? "No documents in library. Upload your first document." : "No documents match your search."}
                       </td>
                     </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td colSpan="5" className="p-8 text-center text-text-secondary italic">
-                      No documents found matching search criteria.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-
-          {/* Table Footer / Pagination */}
-          <div className="p-4 border-t border-border flex items-center justify-between text-[12px] text-text-secondary bg-white">
-            <span>Showing 1 to {filteredDocs.length} of {documents.length} documents</span>
-            <div className="flex items-center gap-1">
-              <button className="p-1 border border-border rounded hover:bg-primary-50 transition-colors disabled:opacity-50" disabled>
-                <ChevronLeft className="w-4 h-4" />
-              </button>
-              <button className="px-3 py-1 bg-primary text-white border border-primary rounded text-[11px] font-semibold">1</button>
-              <button className="px-3 py-1 border border-border rounded hover:bg-primary-50 transition-colors">2</button>
-              <button className="px-3 py-1 border border-border rounded hover:bg-primary-50 transition-colors">3</button>
-              <button className="p-1 border border-border rounded hover:bg-primary-50 transition-colors">
-                <ChevronRight className="w-4 h-4" />
-              </button>
+                  )}
+                </tbody>
+              </table>
             </div>
-          </div>
+          )}
+
+          {/* Table Footer */}
+          {!loading && !error && (
+            <div className="p-4 border-t border-border flex items-center justify-between text-[12px] text-text-secondary bg-white">
+              <span>Showing {filteredDocs.length} of {documents.length} documents</span>
+            </div>
+          )}
         </div>
 
-        {/* Bottom Exposure Stats Strip */}
+        {/* Bottom Stats */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-2">
           <div className="bg-white border border-border rounded p-5 shadow-sm">
-            <span className="text-[10px] font-bold text-text-secondary uppercase tracking-wider block">Total Exposure</span>
+            <span className="text-[10px] font-bold text-text-secondary uppercase tracking-wider block">Total Documents</span>
             <div className="flex items-baseline gap-2 mt-2">
-              <span className="text-2xl font-bold text-primary">$1.2M</span>
-              <span className="text-[11px] text-risk-red font-medium">+12% vs last month</span>
+              <span className="text-2xl font-bold text-primary">{documents.length}</span>
+              <span className="text-[11px] text-text-secondary">analyzed</span>
             </div>
           </div>
           <div className="bg-white border border-border rounded p-5 shadow-sm">
-            <span className="text-[10px] font-bold text-text-secondary uppercase tracking-wider block">High Risk Clauses</span>
+            <span className="text-[10px] font-bold text-text-secondary uppercase tracking-wider block">High Risk Items</span>
             <div className="flex items-baseline gap-2 mt-2">
-              <span className="text-2xl font-bold text-primary">42</span>
-              <span className="text-[11px] text-text-secondary">Across 18 documents</span>
+              <span className="text-2xl font-bold text-risk-red">{highRiskClauses}</span>
+              <span className="text-[11px] text-text-secondary">across all documents</span>
             </div>
           </div>
-          <div className="bg-primary text-white rounded p-5 shadow-sm flex flex-col justify-between">
-            <span className="text-[10px] font-bold text-text-muted uppercase tracking-wider block">Efficiency Rating</span>
+          <div className="bg-primary text-white rounded p-5 shadow-sm">
+            <span className="text-[10px] font-bold text-text-muted uppercase tracking-wider block">Total Risks Found</span>
             <div className="flex items-baseline gap-2 mt-2">
-              <span className="text-2xl font-bold">94%</span>
-              <span className="text-[11px] text-text-muted">Avg compliance match</span>
+              <span className="text-2xl font-bold">{totalRisks}</span>
+              <span className="text-[11px] text-text-muted">identified risks</span>
             </div>
           </div>
         </div>

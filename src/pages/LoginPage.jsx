@@ -1,16 +1,64 @@
-import React, { useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { Scale, Lock, AtSign, ArrowRight, HelpCircle, Globe } from "lucide-react";
+import React, { useState, useEffect } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
+import { Scale, Lock, AtSign, ArrowRight, HelpCircle, Globe, AlertCircle, RefreshCw } from "lucide-react";
 
 export default function LoginPage() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const { signInWithEmail, signInWithGoogle, signUp, isAuthenticated, error, clearError, loading: authLoading } = useAuth();
+
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [isSignUp, setIsSignUp] = useState(false);
+  const [localLoading, setLocalLoading] = useState(false);
+  const [localError, setLocalError] = useState("");
 
-  const handleSignIn = (e) => {
+  // Redirect if already authenticated
+  const from = location.state?.from?.pathname || "/dashboard";
+  useEffect(() => {
+    if (isAuthenticated) {
+      navigate(from, { replace: true });
+    }
+  }, [isAuthenticated, navigate, from]);
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    navigate("/dashboard");
+    setLocalError("");
+    clearError();
+    setLocalLoading(true);
+
+    try {
+      if (isSignUp) {
+        await signUp(email, password);
+      } else {
+        await signInWithEmail(email, password);
+      }
+      navigate(from, { replace: true });
+    } catch (err) {
+      setLocalError(err.message || "Authentication failed. Please try again.");
+    } finally {
+      setLocalLoading(false);
+    }
   };
+
+  const handleGoogleSignIn = async () => {
+    setLocalError("");
+    clearError();
+    setLocalLoading(true);
+    try {
+      await signInWithGoogle();
+      // OAuth redirect will happen automatically for Supabase
+      // For mock auth, navigate manually
+      navigate(from, { replace: true });
+    } catch (err) {
+      setLocalError(err.message || "Google sign-in failed.");
+    } finally {
+      setLocalLoading(false);
+    }
+  };
+
+  const displayError = localError || error;
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-background px-4 font-sans select-none antialiased py-12">
@@ -27,18 +75,33 @@ export default function LoginPage() {
       <div className="w-full max-w-[420px] bg-white rounded border border-border p-8 shadow-sm">
         <div className="space-y-6">
           <div className="space-y-1.5">
-            <h2 className="text-xl font-semibold text-primary tracking-tight">Secure Sign In</h2>
+            <h2 className="text-xl font-semibold text-primary tracking-tight">
+              {isSignUp ? "Create Account" : "Secure Sign In"}
+            </h2>
             <p className="text-[13px] text-text-secondary">
-              Access your legal workspace and analysis history.
+              {isSignUp
+                ? "Set up your legal workspace credentials."
+                : "Access your legal workspace and analysis history."}
             </p>
           </div>
 
+          {/* Error Display */}
+          {displayError && (
+            <div className="flex items-start gap-2 p-3 bg-risk-red-light border border-risk-red/20 rounded text-[12px] text-risk-red" role="alert">
+              <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+              <span>{displayError}</span>
+            </div>
+          )}
+
           {/* Continue with Google */}
           <button
-            onClick={() => navigate("/dashboard")}
-            className="w-full flex items-center justify-center gap-2.5 py-2 px-4 border border-border rounded text-[13px] font-medium text-text-secondary hover:text-primary hover:border-primary hover:bg-primary-50 transition-colors"
+            type="button"
+            onClick={handleGoogleSignIn}
+            disabled={localLoading}
+            aria-label="Continue with Google"
+            className="w-full flex items-center justify-center gap-2.5 py-2 px-4 border border-border rounded text-[13px] font-medium text-text-secondary hover:text-primary hover:border-primary hover:bg-primary-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <svg className="w-4 h-4" viewBox="0 0 24 24">
+            <svg className="w-4 h-4" viewBox="0 0 24 24" aria-hidden="true">
               <path
                 d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 01-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z"
                 fill="#4285F4"
@@ -69,19 +132,21 @@ export default function LoginPage() {
           </div>
 
           {/* Email/Password Form */}
-          <form onSubmit={handleSignIn} className="space-y-4">
+          <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-1.5">
-              <label className="text-[11px] font-semibold text-text-secondary uppercase tracking-wider">
+              <label htmlFor="login-email" className="text-[11px] font-semibold text-text-secondary uppercase tracking-wider">
                 Institutional Email
               </label>
               <div className="relative">
-                <AtSign className="w-4 h-4 text-text-muted absolute left-3 top-2.5" />
+                <AtSign className="w-4 h-4 text-text-muted absolute left-3 top-2.5" aria-hidden="true" />
                 <input
+                  id="login-email"
                   type="email"
                   required
                   placeholder="name@firm-name.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
+                  autoComplete="email"
                   className="w-full pl-9 pr-3 py-2 border border-border rounded text-[13px] text-primary placeholder-text-muted focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/20 transition-all bg-white"
                 />
               </div>
@@ -89,50 +154,82 @@ export default function LoginPage() {
 
             <div className="space-y-1.5">
               <div className="flex justify-between items-center">
-                <label className="text-[11px] font-semibold text-text-secondary uppercase tracking-wider">
+                <label htmlFor="login-password" className="text-[11px] font-semibold text-text-secondary uppercase tracking-wider">
                   Password
                 </label>
-                <a
-                  href="#forgot"
-                  className="text-[11px] font-medium text-text-secondary hover:text-primary transition-colors"
-                >
-                  Forgot?
-                </a>
+                {!isSignUp && (
+                  <a
+                    href="#forgot"
+                    className="text-[11px] font-medium text-text-secondary hover:text-primary transition-colors"
+                  >
+                    Forgot?
+                  </a>
+                )}
               </div>
               <div className="relative">
-                <Lock className="w-4 h-4 text-text-muted absolute left-3 top-2.5" />
+                <Lock className="w-4 h-4 text-text-muted absolute left-3 top-2.5" aria-hidden="true" />
                 <input
+                  id="login-password"
                   type="password"
                   required
+                  minLength={6}
                   placeholder="••••••••"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
+                  autoComplete={isSignUp ? "new-password" : "current-password"}
                   className="w-full pl-9 pr-3 py-2 border border-border rounded text-[13px] text-primary placeholder-text-muted focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/20 transition-all bg-white"
                 />
               </div>
             </div>
 
             {/* Remember Me */}
-            <div className="flex items-center gap-2 py-1">
-              <input
-                id="remember"
-                type="checkbox"
-                className="w-3.5 h-3.5 text-primary border-border rounded focus:ring-primary/20 focus:ring-1 cursor-pointer"
-              />
-              <label htmlFor="remember" className="text-xs text-text-secondary cursor-pointer select-none">
-                Remember this device for 30 days
-              </label>
-            </div>
+            {!isSignUp && (
+              <div className="flex items-center gap-2 py-1">
+                <input
+                  id="remember"
+                  type="checkbox"
+                  className="w-3.5 h-3.5 text-primary border-border rounded focus:ring-primary/20 focus:ring-1 cursor-pointer"
+                />
+                <label htmlFor="remember" className="text-xs text-text-secondary cursor-pointer select-none">
+                  Remember this device for 30 days
+                </label>
+              </div>
+            )}
 
-            {/* Sign In Button */}
+            {/* Submit Button */}
             <button
               type="submit"
-              className="w-full py-2 px-4 bg-primary text-white text-[13px] font-medium rounded hover:bg-primary-light transition-colors flex items-center justify-center gap-1.5"
+              disabled={localLoading}
+              className="w-full py-2 px-4 bg-primary text-white text-[13px] font-medium rounded hover:bg-primary-light transition-colors flex items-center justify-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              <span>Sign In to Workspace</span>
-              <ArrowRight className="w-4 h-4" />
+              {localLoading ? (
+                <>
+                  <RefreshCw className="w-4 h-4 animate-spin" />
+                  <span>{isSignUp ? "Creating Account..." : "Signing In..."}</span>
+                </>
+              ) : (
+                <>
+                  <span>{isSignUp ? "Create Account" : "Sign In to Workspace"}</span>
+                  <ArrowRight className="w-4 h-4" />
+                </>
+              )}
             </button>
           </form>
+
+          {/* Toggle Sign Up / Sign In */}
+          <div className="text-center">
+            <button
+              type="button"
+              onClick={() => {
+                setIsSignUp(!isSignUp);
+                setLocalError("");
+                clearError();
+              }}
+              className="text-[12px] text-text-secondary hover:text-primary transition-colors font-medium"
+            >
+              {isSignUp ? "Already have an account? Sign In" : "Don't have an account? Create one"}
+            </button>
+          </div>
 
           <hr className="border-border" />
 
@@ -154,11 +251,11 @@ export default function LoginPage() {
       {/* Outer Card Links */}
       <div className="flex items-center gap-6 mt-6 text-xs text-text-secondary">
         <a href="#support" className="flex items-center gap-1 hover:text-primary transition-colors">
-          <HelpCircle className="w-3.5 h-3.5" />
+          <HelpCircle className="w-3.5 h-3.5" aria-hidden="true" />
           <span>Support Center</span>
         </a>
         <a href="#lang" className="flex items-center gap-1 hover:text-primary transition-colors">
-          <Globe className="w-3.5 h-3.5" />
+          <Globe className="w-3.5 h-3.5" aria-hidden="true" />
           <span>Language: EN-US</span>
         </a>
       </div>
