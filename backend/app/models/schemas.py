@@ -35,6 +35,7 @@ class LLMMetadata(BaseModel):
     document_confidence_score: Optional[str] = Field(default=None, description="Document type confidence indicator.")
     extracted_ocr_text: Optional[str] = Field(default=None, description="Raw OCR text extracted.")
 
+    filename: str = ""
 
 class LLMResponse(BaseModel):
     """The raw structured response expected from the LLM."""
@@ -87,3 +88,20 @@ class AnalyzeImageRequest(BaseModel):
     ocr_confidence: Optional[str] = None
 
 
+    user_id: str
+    playbook_rules: List[str] = Field(default_factory=list)
+
+class GlobalChatRequest(BaseModel):
+    user_id: str
+    question: str
+
+class ResolveRiskRequest(BaseModel):
+    document_id: str
+    risk_title: str
+    is_resolved: bool
+
+class SuggestionsRequest(BaseModel):
+    user_id: str
+
+class SuggestionsResponse(BaseModel):
+    suggestions: List[str]
