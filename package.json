@@ -1,14 +1,18 @@
 {
-  "name": "doc_analyzer_frontend",
-  "private": true,
-  "version": "0.0.0",
-  "type": "module",
+  "name": "smart-legal-document-analyzer",
+  "version": "1.0.0",
+  "description": "Root project to run frontend and backend",
   "scripts": {
-    "dev": "vite",
-    "build": "tsc && vite build",
+    "install:all": "npm install && npm install --prefix frontend",
+    "start": "concurrently \"cd backend && python -m uvicorn app.main:app --reload --port 5000\" \"npm run dev --prefix frontend\"",
+    "dev": "concurrently \"cd backend && python -m uvicorn app.main:app --reload --port 5000\" \"npm run dev --prefix frontend\"",
+    "dev:root": "vite",
+    "build": "vite build",
+    "build:frontend": "npm run build --prefix frontend",
     "preview": "vite preview"
   },
   "devDependencies": {
+    "concurrently": "^8.2.2",
     "typescript": "~6.0.2",
     "vite": "^8.0.12"
   },

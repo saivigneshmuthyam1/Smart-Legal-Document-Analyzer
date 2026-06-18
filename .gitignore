@@ -1,36 +1,32 @@
-# Dependencies
+# Node.js
 node_modules/
-
-# Build output
+**/node_modules/
 dist/
+**/dist/
 
-# Environment
-.env
-.env.local
-.env.*.local
-
-# IDE
-.vscode/
-.idea/
-*.swp
-*.swo
-
-# OS
-.DS_Store
-Thumbs.db
-
-# Logs
-*.log
-npm-debug.log*
-# Ignore private environment variables containing secrets
-backend/.env
-
-# Ignore compiled python files and cache
+# Python
+__pycache__/
 **/__pycache__/
-**/*.pyc
-**/.pytest_cache/
-
-# Ignore local uploaded files and test files
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+.venv/
 backend/uploads/
 backend/sample_agreement.pdf
 backend/create_sample_pdf.py
+**/*.pdf
+**/uploads/
+
+# Environments / Secrets
+.env
+**/local_settings.py
+
+# OS / IDE
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+.gemini/

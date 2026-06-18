@@ -1,0 +1,182 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Work+Sans:wght@500;600;700;800&family=JetBrains+Mono:wght@500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --color-on-tertiary-fixed: 0 23 75;
+    --color-primary-fixed-dim: 190 198 224;
+    --color-surface-container-high: 230 232 234;
+    --color-on-surface: 25 28 30;
+    --color-inverse-primary: 190 198 224;
+    --color-surface-container-highest: 224 227 229;
+    --color-on-surface-variant: 69 70 77;
+    --color-tertiary-fixed: 219 225 255;
+    --color-primary-container: 19 27 46;
+    --color-on-error-container: 147 0 10;
+    --color-primary: 0 0 0;
+    --color-on-secondary-fixed-variant: 58 72 92;
+    --color-on-tertiary: 255 255 255;
+    --color-on-primary-fixed: 19 27 46;
+    --color-secondary-fixed: 213 227 253;
+    --color-surface-dim: 216 218 220;
+    --color-on-tertiary-fixed-variant: 0 62 168;
+    --color-on-secondary-fixed: 13 28 47;
+    --color-secondary-fixed-dim: 185 199 224;
+    --color-surface: 247 249 251;
+    --color-inverse-on-surface: 239 241 243;
+    --color-surface-container: 236 238 240;
+    --color-on-primary-container: 124 131 155;
+    --color-on-primary: 255 255 255;
+    --color-on-error: 255 255 255;
+    --color-inverse-surface: 45 49 51;
+    --color-tertiary-fixed-dim: 180 197 255;
+    --color-outline: 118 119 125;
+    --color-surface-container-low: 242 244 246;
+    --color-on-tertiary-container: 73 124 255;
+    --color-surface-tint: 86 94 116;
+    --color-outline-variant: 198 198 205;
+    --color-error: 186 26 26;
+    --color-background: 247 249 251;
+    --color-on-background: 25 28 30;
+    --color-secondary-container: 213 227 253;
+    --color-on-secondary-container: 87 101 123;
+    --color-tertiary: 0 0 0;
+    --color-tertiary-container: 0 23 75;
+    --color-error-container: 255 218 214;
+    --color-surface-variant: 224 227 229;
+    --color-surface-bright: 247 249 251;
+    --color-on-primary-fixed-variant: 63 70 92;
+    --color-on-secondary: 255 255 255;
+    --color-secondary: 81 95 116;
+    --color-surface-container-lowest: 255 255 255;
+    --color-primary-fixed: 218 226 253;
+  }
+
+  .dark {
+    --color-on-tertiary-fixed: 0 23 75;
+    --color-primary-fixed-dim: 190 198 224;
+    --color-surface-container-high: 40 42 44;
+    --color-on-surface: 226 226 230;
+    --color-inverse-primary: 190 198 224;
+    --color-surface-container-highest: 51 53 55;
+    --color-on-surface-variant: 196 198 207;
+    --color-tertiary-fixed: 219 225 255;
+    --color-primary-container: 0 70 138;
+    --color-on-error-container: 255 218 214;
+    --color-primary: 169 199 255;
+    --color-on-secondary-fixed-variant: 58 72 92;
+    --color-on-tertiary: 255 255 255;
+    --color-on-primary-fixed: 19 27 46;
+    --color-secondary-fixed: 213 227 253;
+    --color-surface-dim: 216 218 220;
+    --color-on-tertiary-fixed-variant: 0 62 168;
+    --color-on-secondary-fixed: 13 28 47;
+    --color-secondary-fixed-dim: 185 199 224;
+    --color-surface: 17 19 21;
+    --color-inverse-on-surface: 239 241 243;
+    --color-surface-container: 29 32 34;
+    --color-on-primary-container: 214 227 255;
+    --color-on-primary: 0 48 98;
+    --color-on-error: 105 0 5;
+    --color-inverse-surface: 45 49 51;
+    --color-tertiary-fixed-dim: 180 197 255;
+    --color-outline: 141 145 153;
+    --color-surface-container-low: 25 27 29;
+    --color-on-tertiary-container: 73 124 255;
+    --color-surface-tint: 86 94 116;
+    --color-outline-variant: 67 71 78;
+    --color-error: 255 180 171;
+    --color-background: 17 19 21;
+    --color-on-background: 226 226 230;
+    --color-secondary-container: 61 71 88;
+    --color-on-secondary-container: 217 227 249;
+    --color-tertiary: 0 0 0;
+    --color-tertiary-container: 0 23 75;
+    --color-error-container: 147 0 10;
+    --color-surface-variant: 224 227 229;
+    --color-surface-bright: 247 249 251;
+    --color-on-primary-fixed-variant: 63 70 92;
+    --color-on-secondary: 255 255 255;
+    --color-secondary: 189 199 220;
+    --color-surface-container-lowest: 13 15 17;
+    --color-primary-fixed: 218 226 253;
+  }
+}
+
+.material-symbols-outlined {
+  font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+  vertical-align: middle;
+}
+
+.legal-shadow {
+  box-shadow: 0 4px 30px rgba(15, 23, 42, 0.04);
+}
+
+.risk-indicator {
+  border-left-width: 2px;
+}
+
+.risk-chip-critical {
+  border-left: 2px solid #ba1a1a;
+  background-color: rgba(186, 26, 26, 0.05);
+}
+
+.risk-chip-medium {
+  border-left: 2px solid #565e74;
+  background-color: rgba(86, 94, 116, 0.05);
+}
+
+.risk-chip-low {
+  border-left: 2px solid #76777d;
+  background-color: rgba(118, 119, 125, 0.05);
+}
+
+.transition-soft {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #e2e8f0;
+  border-radius: 10px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #cbd5e1;
+}
+
+body {
+  background-color: rgb(var(--color-surface));
+  color: rgb(var(--color-on-surface));
+}
+
+/* Scrollbar styles for chrome-like devtools and body */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #F8FAFC;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #E2E8F0;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #cbd5e1;
+}

@@ -7,3 +7,4 @@ pymupdf>=1.23.0
 openai>=1.14.0
 supabase>=2.4.0
 python-multipart>=0.0.9
+reportlab>=4.0.0
